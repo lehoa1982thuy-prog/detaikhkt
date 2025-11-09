@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { View, Theme, AppData, Subject, Todo, Flashcard } from './types';
 import { loadAppData, saveAppData } from './services/database';
 
@@ -8,19 +8,21 @@ import Dashboard from './components/Dashboard';
 import AiChat from './components/AiChat';
 import Planner from './components/Planner';
 import Pomodoro from './components/Pomodoro';
-import Flashcards from './components/Flashcards';
 import SubjectView from './components/SubjectView';
 import TheoryView from './components/TheoryView';
-import AiQuiz from './components/AiQuiz';
+import Flashcards from './components/Flashcards';
 import QuickChatView from './components/QuickChatView';
+import AiQuiz from './components/AiQuiz';
+import LiquidTaskbar from './components/LiquidTaskbar';
+import CursorFollower from './components/CursorFollower';
+import Snowfall from './components/Snowfall';
 
 const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
   const [currentView, setCurrentView] = useState<View>('dashboard');
-  const [appData, setAppData] = useState<AppData>(loadAppData);
+  const [appData, setAppData] = useState<AppData>(loadAppData());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  // State for Quick Chat
+  const [volume, setVolume] = useState(0.5);
   const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
   const [quickChatInitialMessage, setQuickChatInitialMessage] = useState('');
 
@@ -42,49 +44,40 @@ const App: React.FC = () => {
   };
 
   const handleUpdateTodos = (todos: Todo[]) => {
-    setAppData(prevData => ({ ...prevData, todos }));
+    setAppData(prev => ({ ...prev, todos }));
   };
 
   const handleUpdateFlashcards = (flashcards: Flashcard[]) => {
-    setAppData(prevData => ({ ...prevData, flashcards }));
+    setAppData(prev => ({ ...prev, flashcards }));
+  };
+
+  const handleAskAi = (question: string) => {
+    setQuickChatInitialMessage(question);
+    setIsQuickChatOpen(true);
+  };
+
+  const clearInitialMessage = () => {
+    setQuickChatInitialMessage('');
   };
 
   const handleSetCurrentView = (view: View) => {
     setCurrentView(view);
-    setIsSidebarOpen(false); // Close sidebar on navigation
-  }
-
-  const handleAskAi = (message: string) => {
-    setQuickChatInitialMessage(message);
-    setIsQuickChatOpen(true);
+    setIsSidebarOpen(false); // Close sidebar on navigation on mobile
   };
 
-  const currentSubject = useMemo(() => {
-    if (currentView.includes('-')) {
-        return currentView.split('-')[0] as Subject;
-    }
-    const subjects: Subject[] = ['math', 'literature', 'english', 'it'];
-    if (subjects.includes(currentView as Subject)) {
-        return currentView as Subject;
-    }
-    return null;
-  }, [currentView]);
+  const renderView = () => {
+    const viewParts = currentView.split('-');
+    const subject = viewParts[0] as Subject;
+    const subView = viewParts[1];
 
-  const renderContent = () => {
-    if (currentView.endsWith('-quiz')) {
-        const subject = currentView.split('-')[0] as Subject;
-        if (subject) {
-            return <AiQuiz subject={subject} onAskAi={handleAskAi} />;
-        }
-        return <div>Quiz not found for subject: {currentSubject}</div>;
-    }
-
-    if (currentView.endsWith('-theory')) {
-        if (currentSubject) {
-            return <TheoryView subject={currentSubject} />;
-        }
+    if (subView === 'quiz') {
+      return <AiQuiz subject={subject} onAskAi={handleAskAi} />;
     }
     
+    if (subView === 'theory') {
+      return <TheoryView subject={subject} />;
+    }
+
     switch (currentView) {
       case 'dashboard':
         return <Dashboard progress={appData.progress} setCurrentView={handleSetCurrentView} />;
@@ -102,29 +95,50 @@ const App: React.FC = () => {
       case 'it':
         return <SubjectView subject={currentView} setCurrentView={handleSetCurrentView} />;
       default:
+        // Fallback for any invalid view
         return <Dashboard progress={appData.progress} setCurrentView={handleSetCurrentView} />;
     }
   };
 
   return (
     <div className={`flex h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans`}>
-      <div 
-        className={`fixed inset-0 bg-black/60 z-20 lg:hidden transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
-        onClick={() => setIsSidebarOpen(false)} 
-        aria-hidden="true"
-    />
-      <Sidebar currentView={currentView} setCurrentView={handleSetCurrentView} isOpen={isSidebarOpen} />
+      <CursorFollower />
+      <Snowfall />
+      <Sidebar
+        currentView={currentView}
+        setCurrentView={handleSetCurrentView}
+        isOpen={isSidebarOpen}
+        volume={volume}
+        setVolume={setVolume}
+      />
+
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header theme={theme} toggleTheme={toggleTheme} onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8">
-          {renderContent()}
+        <Header
+          theme={theme}
+          toggleTheme={toggleTheme}
+          onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
+        <main className="flex-1 overflow-y-auto p-6 sm:p-8">
+          {renderView()}
         </main>
       </div>
-      <QuickChatView 
+      
+      <div className="lg:hidden">
+        <LiquidTaskbar currentView={currentView} setCurrentView={handleSetCurrentView} />
+      </div>
+
+      <QuickChatView
         isOpen={isQuickChatOpen}
         setIsOpen={setIsQuickChatOpen}
         initialMessage={quickChatInitialMessage}
-        clearInitialMessage={() => setQuickChatInitialMessage('')}
+        clearInitialMessage={clearInitialMessage}
       />
     </div>
   );

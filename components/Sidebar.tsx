@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { View } from '../types';
 
@@ -6,6 +5,8 @@ interface SidebarProps {
   currentView: View;
   setCurrentView: (view: View) => void;
   isOpen: boolean;
+  volume: number;
+  setVolume: (volume: number) => void;
 }
 
 interface NavItemProps {
@@ -33,7 +34,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, view, currentView, onCli
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, isOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, isOpen, volume, setVolume }) => {
   const menuItems = {
     dashboard: [
       { icon: 'fas fa-home', label: 'Tổng quan', view: 'dashboard' as View },
@@ -52,9 +53,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, isOpen }
     ],
   };
 
+  const getVolumeIcon = () => {
+    if (volume === 0) return 'fas fa-volume-mute';
+    if (volume < 0.5) return 'fas fa-volume-down';
+    return 'fas fa-volume-up';
+  };
+
   return (
     <aside className={`fixed lg:relative inset-y-0 left-0 z-30 w-80 bg-white dark:bg-slate-800 p-6 shadow-lg flex-col flex transition-transform duration-300 ease-in-out ${ isOpen ? 'translate-x-0' : '-translate-x-full' } lg:translate-x-0`}>
-      <nav className="flex flex-col gap-8">
+      <nav className="flex flex-col gap-8 flex-1">
         <div>
           <h2 className="px-4 mb-2 text-sm font-semibold text-slate-400 uppercase tracking-wider">Dashboard</h2>
           <div className="flex flex-col gap-2">
@@ -80,6 +87,23 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, isOpen }
           </div>
         </div>
       </nav>
+      
+      <div className="mt-auto">
+        <h2 className="px-4 mb-2 text-sm font-semibold text-slate-400 uppercase tracking-wider">Hiệu ứng</h2>
+        <div className="flex items-center gap-3 px-4 py-3">
+          <i className={`w-6 text-center text-slate-600 dark:text-slate-300 ${getVolumeIcon()}`}></i>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            value={volume}
+            onChange={(e) => setVolume(parseFloat(e.target.value))}
+            className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+            aria-label="Volume control"
+          />
+        </div>
+      </div>
     </aside>
   );
 };
