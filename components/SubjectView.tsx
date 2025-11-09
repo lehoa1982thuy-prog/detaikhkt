@@ -1,17 +1,11 @@
 import React from 'react';
 import type { Subject, View } from '../types';
+import { subjectDetails } from '../types';
 
 interface SubjectViewProps {
   subject: Subject;
   setCurrentView: (view: View) => void;
 }
-
-const subjectDetails: Record<Subject, { name: string; gradient: string }> = {
-  math: { name: 'Toán học', gradient: 'from-blue-500 to-cyan-500' },
-  literature: { name: 'Ngữ văn', gradient: 'from-purple-500 to-pink-500' },
-  english: { name: 'Tiếng Anh', gradient: 'from-green-500 to-lime-500' },
-  it: { name: 'Tin học', gradient: 'from-orange-500 to-amber-500' },
-};
 
 const OptionCard: React.FC<{ icon: string; title: string; description: string; onClick: () => void }> = ({ icon, title, description, onClick }) => (
     <button 

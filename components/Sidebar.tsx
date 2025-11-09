@@ -4,6 +4,7 @@ import type { View } from '../types';
 interface SidebarProps {
   currentView: View;
   setCurrentView: (view: View) => void;
+  isOpen: boolean;
 }
 
 interface NavItemProps {
@@ -31,7 +32,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, view, currentView, onCli
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, isOpen }) => {
   const menuItems = {
     dashboard: [
       { icon: 'fas fa-home', label: 'Tổng quan', view: 'dashboard' as View },
@@ -51,7 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
   };
 
   return (
-    <aside className="w-80 bg-white dark:bg-slate-800 p-6 shadow-lg flex-col hidden lg:flex">
+    <aside className={`fixed lg:relative inset-y-0 left-0 z-30 w-80 bg-white dark:bg-slate-800 p-6 shadow-lg flex-col flex transition-transform duration-300 ease-in-out ${ isOpen ? 'translate-x-0' : '-translate-x-full' } lg:translate-x-0`}>
       <nav className="flex flex-col gap-8">
         <div>
           <h2 className="px-4 mb-2 text-sm font-semibold text-slate-400 uppercase tracking-wider">Dashboard</h2>

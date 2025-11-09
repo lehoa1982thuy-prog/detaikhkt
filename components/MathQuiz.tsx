@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { GoogleGenAI } from '@google/genai';
+import ApiKeyPrompt from './ApiKeyPrompt';
+import MathRenderer from './MathRenderer';
 
 type AnswerState = 'unselected' | 'selected' | 'correct' | 'incorrect';
 
@@ -11,41 +14,109 @@ interface Question {
   questionText: string;
   answers: Answer[];
   correctAnswer: string;
-  explanation: string;
+}
+
+interface MathQuizProps {
+    onAskAi: (question: string) => void;
 }
 
 const questions: Question[] = [
   {
-    questionText: "Trong một tam giác vuông, bình phương cạnh huyền bằng gì?",
+    questionText: "Hàm số y = (1 - 2x) / (-x + 2) có bao nhiêu điểm cực trị?",
     answers: [
-      { id: 'A', text: 'Tổng bình phương hai cạnh góc vuông.' },
-      { id: 'B', text: 'Hiệu bình phương hai cạnh góc vuông.' },
-      { id: 'C', text: 'Tích hai cạnh góc vuông.' },
-      { id: 'D', text: 'Thương hai cạnh góc vuông.' },
+      { id: 'A', text: '3' },
+      { id: 'B', text: '1' },
+      { id: 'C', text: '2' },
+      { id: 'D', text: '0' },
     ],
-    correctAnswer: 'A',
-    explanation: "Đây là nội dung của Định lý Pythagoras: trong một tam giác vuông, bình phương của cạnh huyền bằng tổng các bình phương của hai cạnh góc vuông."
+    correctAnswer: 'D',
   },
   {
-    questionText: "Phương trình x² - 5x + 6 = 0 có hai nghiệm là?",
+    questionText: "Trong không gian Oxyz, toạ độ hình chiếu của điểm A(1; 2; −3) lên mặt phẳng (Oxy) là gì?",
     answers: [
-      { id: 'A', text: 'x=1 và x=6' },
-      { id: 'B', text: 'x=-2 và x=-3' },
-      { id: 'C', text: 'x=2 và x=3' },
-      { id: 'D', text: 'x=-1 và x=-6' },
+      { id: 'A', text: '(0; 2; -3)' },
+      { id: 'B', text: '(1; 0; -3)' },
+      { id: 'C', text: '(1; 2; 0)' },
+      { id: 'D', text: '(1; 0; 0)' },
     ],
     correctAnswer: 'C',
-    explanation: "Phương trình có a=1, b=-5, c=6. Ta có a+b+c = 1-5+6=2 (khác 0). Delta = b²-4ac = (-5)²-4*1*6 = 25-24=1. Do đó, hai nghiệm là x1=(5+1)/2=3 và x2=(5-1)/2=2."
+  },
+  {
+    questionText: "Giá trị nhỏ nhất của hàm số y = (x - 1) / (x + 1) trên đoạn [0; 3] là bao nhiêu?",
+    answers: [
+      { id: 'A', text: '-3' },
+      { id: 'B', text: '1/2' },
+      { id: 'C', text: '-1' },
+      { id: 'D', text: '1' },
+    ],
+    correctAnswer: 'C',
   },
 ];
 
-
-const MathQuiz: React.FC = () => {
+const MathQuiz: React.FC<MathQuizProps> = ({ onAskAi }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState('');
+  const [isExplanationLoading, setIsExplanationLoading] = useState(false);
+  const [score, setScore] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
+
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [isCheckingApiKey, setIsCheckingApiKey] = useState(true);
+
+  useEffect(() => {
+    const checkKey = async () => {
+      setIsCheckingApiKey(true);
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey);
+      }
+      setIsCheckingApiKey(false);
+    };
+    checkKey();
+  }, []);
+
+  const selectApiKey = async () => {
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+      await window.aistudio.openSelectKey();
+      setHasApiKey(true);
+    }
+  };
   
   const currentQuestion = questions[currentQuestionIndex];
+
+  const fetchExplanation = async () => {
+    if (!hasApiKey) return;
+    setIsExplanationLoading(true);
+    setAiExplanation('');
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const prompt = `Giải thích chi tiết tại sao đáp án đúng cho câu hỏi trắc nghiệm Toán học sau đây lại là đáp án đó. Trình bày một cách dễ hiểu cho học sinh cấp 3.
+        
+        Câu hỏi: "${currentQuestion.questionText}"
+        
+        Các lựa chọn:
+        ${currentQuestion.answers.map(a => `${a.id}. ${a.text}`).join('\n')}
+        
+        Đáp án đúng: ${currentQuestion.correctAnswer}
+        
+        Bắt đầu giải thích:`;
+
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+
+        setAiExplanation(response.text);
+    } catch (error) {
+         if (error instanceof Error && error.message.includes("Requested entity was not found")) {
+            setHasApiKey(false);
+        } else {
+            console.error("Error fetching AI explanation:", error);
+            setAiExplanation("Rất tiếc, đã có lỗi xảy ra khi tạo giải thích. Vui lòng thử lại.");
+        }
+    } finally {
+        setIsExplanationLoading(false);
+    }
+  };
 
   const handleSelectAnswer = (id: string) => {
     if (!isSubmitted) {
@@ -55,19 +126,35 @@ const MathQuiz: React.FC = () => {
   
   const handleSubmit = () => {
     if (selectedAnswer) {
+      if (selectedAnswer === currentQuestion.correctAnswer) {
+        setScore(prevScore => prevScore + 1);
+      }
       setIsSubmitted(true);
+      if (selectedAnswer !== currentQuestion.correctAnswer) {
+        fetchExplanation();
+      }
     }
   }
 
   const handleNext = () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setIsSubmitted(false);
-      setSelectedAnswer(null);
     } else {
-      alert("Bạn đã hoàn thành bài kiểm tra Toán!");
+      setIsFinished(true);
     }
+    setIsSubmitted(false);
+    setSelectedAnswer(null);
+    setAiExplanation('');
   }
+
+  const restartQuiz = () => {
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer(null);
+    setIsSubmitted(false);
+    setAiExplanation('');
+    setScore(0);
+    setIsFinished(false);
+  };
 
   const getAnswerState = (id: string): AnswerState => {
     if (!isSubmitted) {
@@ -95,6 +182,30 @@ const MathQuiz: React.FC = () => {
         return 'bg-slate-100 dark:bg-slate-700 border-transparent hover:bg-slate-200 dark:hover:bg-slate-600';
     }
   }
+  
+   if (isCheckingApiKey) {
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-center p-4">
+             <div className="text-xl font-semibold">Checking for API Key...</div>
+        </div>
+    );
+  }
+
+  if (isFinished) {
+    return (
+        <div className="max-w-3xl mx-auto bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg text-center">
+            <h2 className="text-3xl font-bold mb-4">Hoàn thành!</h2>
+            <p className="text-slate-500 dark:text-slate-400 mb-4">Bạn đã hoàn thành bài kiểm tra Toán học.</p>
+            <p className="text-2xl font-bold mb-8">Điểm của bạn: <span className="text-indigo-500">{score} / {questions.length}</span></p>
+            <button
+                onClick={restartQuiz}
+                className="px-8 py-4 text-white font-bold rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:opacity-90 transition-opacity"
+            >
+                Làm lại
+            </button>
+        </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg">
@@ -119,7 +230,7 @@ const MathQuiz: React.FC = () => {
         ))}
       </div>
       
-      {!isSubmitted ? (
+       {!isSubmitted ? (
          <button 
             onClick={handleSubmit} 
             disabled={!selectedAnswer}
@@ -134,14 +245,42 @@ const MathQuiz: React.FC = () => {
         </button>
       )}
 
-      {isSubmitted && (
+      {!isSubmitted && (
+          <div className="text-center mt-4">
+            <button
+                onClick={() => onAskAi(currentQuestion.questionText)}
+                className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                <i className="fas fa-comment-dots mr-1"></i>
+                Cần trợ giúp? Hỏi AI
+            </button>
+        </div>
+      )}
+
+      {isSubmitted && selectedAnswer !== currentQuestion.correctAnswer && (
         <div className="mt-8 p-6 bg-slate-100 dark:bg-slate-700 rounded-xl">
-          <h3 className={`text-xl font-bold mb-2 ${selectedAnswer === currentQuestion.correctAnswer ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {selectedAnswer === currentQuestion.correctAnswer ? 'Chính xác!' : 'Không chính xác!'}
-          </h3>
-          <p className="text-slate-700 dark:text-slate-200">
-            {currentQuestion.explanation}
-          </p>
+            <h3 className="text-xl font-bold mb-2 text-red-600 dark:text-red-400">Không chính xác!</h3>
+            {!hasApiKey ? 
+                <ApiKeyPrompt onSelectApiKey={selectApiKey} featureName="AI Explanations" /> :
+             isExplanationLoading ? (
+                 <div className="flex items-center gap-2">
+                    <p className="text-slate-700 dark:text-slate-200">AI đang giải thích...</p>
+                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse [animation-delay:0.1s]"></div>
+                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse [animation-delay:0.2s]"></div>
+                </div>
+             ) : (
+                 <>
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100">Giải thích từ AI:</h4>
+                    <MathRenderer text={aiExplanation} className="text-slate-700 dark:text-slate-200 whitespace-pre-wrap mt-2" />
+                 </>
+             )
+            }
+        </div>
+      )}
+       {isSubmitted && selectedAnswer === currentQuestion.correctAnswer && (
+        <div className="mt-8 p-6 bg-green-50 dark:bg-green-900/50 rounded-xl">
+          <h3 className="text-xl font-bold text-green-600 dark:text-green-400">Chính xác! Làm tốt lắm!</h3>
         </div>
       )}
     </div>
