@@ -84,7 +84,7 @@ const MathQuiz: React.FC<MathQuizProps> = ({ onAskAi }) => {
 
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
 
-        setAiExplanation(response.text);
+        setAiExplanation(response.text ?? "Không nhận được giải thích từ AI. Vui lòng thử lại.");
     } catch (error) {
         if (error instanceof Error && (error.message.includes("API key not valid") || error.message.includes("provide an API key"))) {
             setAiExplanation("Không thể tải giải thích từ AI. Vui lòng kiểm tra API key của bạn trong tệp .env và làm mới trang.");

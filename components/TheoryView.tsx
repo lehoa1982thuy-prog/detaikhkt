@@ -32,7 +32,7 @@ const TheoryView: React.FC<{ subject: Subject }> = ({ subject }) => {
 
 Hãy trình bày bài giảng một cách mạch lạc, sử dụng ngôn ngữ thân thiện và khuyến khích học sinh.`,
       });
-      setAiExplanation(response.text);
+      setAiExplanation(response.text ?? "Không nhận được phản hồi từ AI. Vui lòng thử lại.");
     } catch (error) {
       if (error instanceof Error && (error.message.includes("API key not valid") || error.message.includes("provide an API key"))) {
         setAiExplanation("API key của bạn không hợp lệ. Vui lòng kiểm tra tệp .env và làm mới trang để sử dụng tính năng này.");

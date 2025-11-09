@@ -129,7 +129,12 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, onUpdateFlashcards 
                 },
             });
     
-            const data = JSON.parse(response.text);
+            const responseText = response.text;
+            if (!responseText) {
+                throw new Error("AI response was empty.");
+            }
+            const data = JSON.parse(responseText);
+
             if (data.flashcards && data.flashcards.length > 0) {
                 setGeneratedCards(data.flashcards);
             } else {

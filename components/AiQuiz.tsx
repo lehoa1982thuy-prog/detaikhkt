@@ -102,7 +102,12 @@ const AiQuiz: React.FC<AiQuizProps> = ({ subject, onAskAi }) => {
             },
         });
         
-        const quizData = JSON.parse(response.text);
+        const responseText = response.text;
+        if (!responseText) {
+            throw new Error("AI response was empty.");
+        }
+        const quizData = JSON.parse(responseText);
+
         if (quizData.questions && quizData.questions.length > 0) {
             setQuestions(quizData.questions);
             setCurrentQuestionIndex(0);
