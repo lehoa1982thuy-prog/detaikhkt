@@ -23,7 +23,7 @@ const QuickChatView: React.FC<QuickChatViewProps> = ({ isOpen, setIsOpen, initia
             </div>
             {isOpen && <QuickChat 
                 closeChat={() => setIsOpen(false)} 
-                initialMessage={initialMessage}
+                initialMessage={initialMessage}      
                 clearInitialMessage={clearInitialMessage}
             />}
         </>
