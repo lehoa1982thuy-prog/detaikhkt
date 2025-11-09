@@ -12,7 +12,6 @@ import Flashcards from './components/Flashcards';
 import SubjectView from './components/SubjectView';
 import TheoryView from './components/TheoryView';
 import AiQuiz from './components/AiQuiz';
-import MathQuiz from './components/MathQuiz';
 import QuickChatView from './components/QuickChatView';
 
 const App: React.FC = () => {
@@ -74,9 +73,6 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (currentView.endsWith('-quiz')) {
         const subject = currentView.split('-')[0] as Subject;
-        if (subject === 'math') {
-            return <MathQuiz onAskAi={handleAskAi} />;
-        }
         if (subject) {
             return <AiQuiz subject={subject} onAskAi={handleAskAi} />;
         }

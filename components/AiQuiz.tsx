@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
-import ApiKeyPrompt from './ApiKeyPrompt';
 import type { Subject } from '../types';
 import { subjectDetails } from '../types';
 import MathRenderer from './MathRenderer';
@@ -69,9 +68,6 @@ const AiQuiz: React.FC<AiQuizProps> = ({ subject, onAskAi }) => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
-
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const [isCheckingApiKey, setIsCheckingApiKey] = useState(true);
   
   const details = subjectDetails[subject];
 
@@ -84,31 +80,14 @@ const AiQuiz: React.FC<AiQuizProps> = ({ subject, onAskAi }) => {
     setScore(0);
   }, [subject]);
 
-  useEffect(() => {
-    const checkKey = async () => {
-      setIsCheckingApiKey(true);
-       if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setHasApiKey(hasKey);
-      }
-      setIsCheckingApiKey(false);
-    };
-    checkKey();
-  }, []);
-
-  const selectApiKey = async () => {
-     if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-      setHasApiKey(true);
-    }
-  };
-
   const generateQuiz = async () => {
-    if (!hasApiKey) return;
     setQuizState('generating');
     setError(null);
     setScore(0);
     try {
+        if (!process.env.API_KEY) {
+          throw new Error("API key is not provided.");
+        }
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = customTopic.trim()
             ? `Hãy tạo 5 câu hỏi trắc nghiệm môn ${details.name} cấp trung học phổ thông bằng tiếng Việt về chủ đề: "${customTopic}".`
@@ -135,9 +114,8 @@ const AiQuiz: React.FC<AiQuizProps> = ({ subject, onAskAi }) => {
         }
     } catch (err) {
         console.error("Error generating quiz:", err);
-        if (err instanceof Error && err.message.includes("Requested entity was not found")) {
-            setHasApiKey(false);
-            setError("Your API key appears to be invalid. Please select a valid key to generate a quiz.");
+        if (err instanceof Error && (err.message.includes("API key not valid") || err.message.includes("provide an API key"))) {
+            setError("API key của bạn không hợp lệ. Vui lòng kiểm tra tệp .env và làm mới trang.");
         } else {
             setError("Không thể tạo bài kiểm tra. Vui lòng thử lại.");
         }
@@ -145,17 +123,6 @@ const AiQuiz: React.FC<AiQuizProps> = ({ subject, onAskAi }) => {
     }
   };
 
-  if (isCheckingApiKey) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <div className="text-xl font-semibold">Checking for API Key...</div>
-      </div>
-    );
-  }
-
-  if (!hasApiKey) {
-      return <ApiKeyPrompt onSelectApiKey={selectApiKey} featureName={`AI-Generated ${details.name} Quizzes`} />
-  }
 
   if (quizState === 'idle' || quizState === 'generating') {
     return (

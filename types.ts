@@ -1,3 +1,4 @@
+
 export type Subject = 'math' | 'literature' | 'english' | 'it';
 
 export type View = 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, Chat } from '@google/genai';
-import ApiKeyPrompt from './ApiKeyPrompt';
 import MathRenderer from './MathRenderer';
 
 interface Message {
@@ -14,23 +13,12 @@ const AiChat: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [chat, setChat] = useState<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const [isCheckingApiKey, setIsCheckingApiKey] = useState(true);
 
   useEffect(() => {
-    const checkKey = async () => {
-      setIsCheckingApiKey(true);
-      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setHasApiKey(hasKey);
+    try {
+      if (!process.env.API_KEY) {
+          throw new Error("API key is not provided.");
       }
-      setIsCheckingApiKey(false);
-    };
-    checkKey();
-  }, []);
-
-  useEffect(() => {
-    if (hasApiKey) {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const chatSession = ai.chats.create({
         model: 'gemini-2.5-flash',
@@ -39,17 +27,12 @@ const AiChat: React.FC = () => {
         },
       });
       setChat(chatSession);
-    } else {
-      setChat(null);
+    } catch (error) {
+        console.error("Failed to initialize AI Chat:", error);
+        setMessages([{ role: 'model', text: 'Không thể khởi tạo AI Chat. Vui lòng kiểm tra API key của bạn trong tệp .env và làm mới trang.' }]);
     }
-  }, [hasApiKey]);
+  }, []);
 
-  const selectApiKey = async () => {
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-      setHasApiKey(true);
-    }
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -86,13 +69,12 @@ const AiChat: React.FC = () => {
 
     } catch (error) {
        setMessages(prev => prev.filter((_, i) => i < prev.length -1)); // remove placeholder on error
-       if (error instanceof Error && error.message.includes("Requested entity was not found")) {
-        setHasApiKey(false);
-        const errorMessage: Message = { role: 'model', text: 'Your API key appears to be invalid. Please select a valid key to continue.' };
+       if (error instanceof Error && (error.message.includes("API key not valid") || error.message.includes("provide an API key"))) {
+        const errorMessage: Message = { role: 'model', text: 'API key của bạn không hợp lệ. Vui lòng kiểm tra tệp .env và làm mới trang.' };
         setMessages(prev => [...prev, errorMessage]);
       } else {
         console.error('Error sending message:', error);
-        const errorMessage: Message = { role: 'model', text: 'Sorry, I encountered an error. Please try again.' };
+        const errorMessage: Message = { role: 'model', text: 'Rất tiếc, tôi đã gặp lỗi. Vui lòng thử lại.' };
         setMessages(prev => [...prev, errorMessage]);
       }
     } finally {
@@ -100,19 +82,6 @@ const AiChat: React.FC = () => {
     }
   };
   
-  if (isCheckingApiKey) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-4">
-             <div className="text-xl font-semibold">Checking for API Key...</div>
-        </div>
-    );
-  }
-
-  if (!hasApiKey) {
-    return <ApiKeyPrompt onSelectApiKey={selectApiKey} featureName="AI Chat" />;
-  }
-
-
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
       <div className="p-6 border-b border-slate-200 dark:border-slate-700">

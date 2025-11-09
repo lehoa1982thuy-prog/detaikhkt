@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import ApiKeyPrompt from './ApiKeyPrompt';
 import MathRenderer from './MathRenderer';
 
 type AnswerState = 'unselected' | 'selected' | 'correct' | 'incorrect';
@@ -62,35 +61,15 @@ const MathQuiz: React.FC<MathQuizProps> = ({ onAskAi }) => {
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const [isCheckingApiKey, setIsCheckingApiKey] = useState(true);
-
-  useEffect(() => {
-    const checkKey = async () => {
-      setIsCheckingApiKey(true);
-      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setHasApiKey(hasKey);
-      }
-      setIsCheckingApiKey(false);
-    };
-    checkKey();
-  }, []);
-
-  const selectApiKey = async () => {
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-      setHasApiKey(true);
-    }
-  };
-  
   const currentQuestion = questions[currentQuestionIndex];
 
   const fetchExplanation = async () => {
-    if (!hasApiKey) return;
     setIsExplanationLoading(true);
     setAiExplanation('');
     try {
+        if (!process.env.API_KEY) {
+          throw new Error("API key is not provided.");
+        }
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = `Giải thích chi tiết tại sao đáp án đúng cho câu hỏi trắc nghiệm Toán học sau đây lại là đáp án đó. Trình bày một cách dễ hiểu cho học sinh cấp 3.
         
@@ -107,8 +86,8 @@ const MathQuiz: React.FC<MathQuizProps> = ({ onAskAi }) => {
 
         setAiExplanation(response.text);
     } catch (error) {
-         if (error instanceof Error && error.message.includes("Requested entity was not found")) {
-            setHasApiKey(false);
+        if (error instanceof Error && (error.message.includes("API key not valid") || error.message.includes("provide an API key"))) {
+            setAiExplanation("Không thể tải giải thích từ AI. Vui lòng kiểm tra API key của bạn trong tệp .env và làm mới trang.");
         } else {
             console.error("Error fetching AI explanation:", error);
             setAiExplanation("Rất tiếc, đã có lỗi xảy ra khi tạo giải thích. Vui lòng thử lại.");
@@ -182,14 +161,6 @@ const MathQuiz: React.FC<MathQuizProps> = ({ onAskAi }) => {
         return 'bg-slate-100 dark:bg-slate-700 border-transparent hover:bg-slate-200 dark:hover:bg-slate-600';
     }
   }
-  
-   if (isCheckingApiKey) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-4">
-             <div className="text-xl font-semibold">Checking for API Key...</div>
-        </div>
-    );
-  }
 
   if (isFinished) {
     return (
@@ -260,9 +231,7 @@ const MathQuiz: React.FC<MathQuizProps> = ({ onAskAi }) => {
       {isSubmitted && selectedAnswer !== currentQuestion.correctAnswer && (
         <div className="mt-8 p-6 bg-slate-100 dark:bg-slate-700 rounded-xl">
             <h3 className="text-xl font-bold mb-2 text-red-600 dark:text-red-400">Không chính xác!</h3>
-            {!hasApiKey ? 
-                <ApiKeyPrompt onSelectApiKey={selectApiKey} featureName="AI Explanations" /> :
-             isExplanationLoading ? (
+            {isExplanationLoading ? (
                  <div className="flex items-center gap-2">
                     <p className="text-slate-700 dark:text-slate-200">AI đang giải thích...</p>
                     <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></div>

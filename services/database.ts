@@ -1,3 +1,4 @@
+
 import type { AppData } from '../types';
 
 const DB_KEY = 'ai-study-assistant-data';

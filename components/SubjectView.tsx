@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Subject, View } from '../types';
 import { subjectDetails } from '../types';
